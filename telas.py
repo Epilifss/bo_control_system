@@ -260,7 +260,7 @@ class NovaBOWindow:
         campos = [
             "OP", "Loja", "NF de envio", "NF de devolução", "OP de venda",
             "Tipo de Ocorrência", "Motivo", "Frete", "Setor responsável", "Status",
-            "Previsão de embarque", "Descrição"
+            "Previsão de embarque", "Descrição", "Filial"
         ]
 
         self.entries = {}
@@ -341,7 +341,7 @@ class NovaBOWindow:
             campos = [
                 "OP", "Loja", "NF de envio", "NF de devolução", "OP de venda",
                 "Tipo de Ocorrência", "Motivo", "Frete", "Setor responsável", "Status",
-                "Previsão de embarque", "Descrição"
+                "Previsão de embarque", "Descrição", "Filial"
             ]
 
             for campo in campos:
@@ -354,8 +354,8 @@ class NovaBOWindow:
                 INSERT INTO bo_records (
                     bo_number, op, loja, nf_envio, nf_devolucao, op_venda,
                     tipo_ocorrencia, motivo, frete, setor_responsavel, status,
-                    previsao_embarque, descricao, modulo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    previsao_embarque, descricao, modulo, filial
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', valores)
             conn.commit()
 

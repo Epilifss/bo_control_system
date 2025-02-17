@@ -14,6 +14,20 @@ def create_connection():
     except pyodbc.Error as e:
         print(f"Erro ao conectar ao banco de dados: {e}")
         return None
+    
+def create_connection_mikonos():
+    try:
+        conn = pyodbc.connect(
+            "DRIVER={ODBC Driver 17 for SQL Server};"  # Use o driver correto para o SQL Server
+            "SERVER=192.168.0.10;"                   # Nome ou IP do servidor
+            "DATABASE=DADOSADV;"                     # Nome do banco de dados
+            "UID=Totvs;"                              # Nome de usuário
+            "PWD=totvs;"                              # Senha
+        )
+        return conn
+    except pyodbc.Error as e:
+        print(f"Erro ao conectar ao banco de dados: {e}")
+        return None
 
 def init_db():
     conn = create_connection()

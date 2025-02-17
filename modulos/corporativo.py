@@ -4,6 +4,7 @@ from tkcalendar import DateEntry
 import pyodbc
 from telas import *
 from modulos.embarcados import Embarcados
+from modulos.buscarBo import buscarBo
 from database import create_connection
 
 
@@ -27,6 +28,10 @@ class CorporativoModule:
         ttk.Button(header, text="Gerar Relatório").pack(side=tk.LEFT)
         ttk.Button(header, text="Logoff",
                    command=self.logoff).pack(side=tk.RIGHT)
+        ttk.Button(header, text="Atualizar",
+                   command=lambda: self.carregar_bos()).pack(side=tk.RIGHT)
+        ttk.Button(header, text="Buscar BO",
+                   command=lambda: buscarBo(user)).pack(side=tk.RIGHT)
 
         # Barra de pesquisa
         search_frame = ttk.Frame(self.root)
