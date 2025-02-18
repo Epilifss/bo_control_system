@@ -1,10 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from tkcalendar import DateEntry
 import pyodbc
 from telas import *
 from modulos.embarcados import Embarcados
-from modulos.buscarBo import buscarBo
 from database import create_connection
 
 
@@ -21,8 +19,6 @@ class CorporativoModule:
         header = ttk.Frame(self.root)
         header.pack(fill=tk.X)
 
-        ttk.Button(header, text="Nova BO",
-                   command=self.nova_bo).pack(side=tk.LEFT)
         ttk.Button(header, text="Embarcados", command= lambda: Embarcados(user)).pack(side=tk.LEFT)
         ttk.Button(header, text="Estatísticas").pack(side=tk.LEFT)
         ttk.Button(header, text="Gerar Relatório").pack(side=tk.LEFT)
@@ -31,7 +27,7 @@ class CorporativoModule:
         ttk.Button(header, text="Atualizar",
                    command=lambda: self.carregar_bos()).pack(side=tk.RIGHT)
         ttk.Button(header, text="Buscar BO",
-                   command=lambda: buscarBo(user)).pack(side=tk.RIGHT)
+                   command= self.buscar_bo).pack(side=tk.RIGHT)
 
         # Barra de pesquisa
         search_frame = ttk.Frame(self.root)
@@ -127,9 +123,9 @@ class CorporativoModule:
                 cursor.close()
                 conn.close()
 
-    def nova_bo(self):
-        from telas import NovaBOWindow
-        obj =NovaBOWindow(self.root)
+    def buscar_bo(self):
+        from modulos.buscarBo import buscarBo
+        obj = buscarBo(self.root)
         resultado = obj.identificar_chamador("corporativo")
         print(resultado)
 
