@@ -68,18 +68,20 @@ def init_db():
                 previsao_embarque DATE,
                 descricao TEXT,
                 created_at DATETIME DEFAULT GETDATE(),
-                dt_embarque DATE
+                dt_embarque DATE,
+                modulo VARCHAR(50),
+                filial VARCHAR(4)
             )
         ''')
         
         # Tabela de sequência para números de BO
-        cursor.execute('''
-            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='bo_sequence' AND xtype='U')
-            CREATE TABLE bo_sequence (
-                year INT PRIMARY KEY,
-                last_number INT DEFAULT 0
-            )
-        ''')
+        # cursor.execute('''
+        #     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='bo_sequence' AND xtype='U')
+        #     CREATE TABLE bo_sequence (
+        #         year INT PRIMARY KEY,
+        #         last_number INT DEFAULT 0
+        #     )
+        # ''')
         
         # Inserir usuário admin padrão se não existir
         admin_password = hashlib.sha256("4dmin123@4".encode()).hexdigest()

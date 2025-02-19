@@ -5,6 +5,7 @@ import pyodbc
 import datetime
 import hashlib
 from modulos.corporativo import CorporativoModule
+from modulos.varejo import VarejoModule
 from database import create_connection
 
 class LoginWindow:
@@ -68,7 +69,7 @@ class LoginWindow:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT * FROM users WHERE username=? AND password_hash=?", (username, hashed_pw))
+                "SELECT * FROM users WHERE username COLLATE Latin1_General_BIN=? AND password_hash COLLATE Latin1_General_BIN=?", (username, hashed_pw))
             user = cursor.fetchone()
             print(user)
 
@@ -81,6 +82,12 @@ class LoginWindow:
                     if (module) == '0':
                         self.root.destroy()
                         CorporativoModule(user)
+                    elif (module) == '1':
+                        self.root.destroy()
+                        VarejoModule(user)
+                    # elif (module) == '2':
+                    #     self.root.destroy()
+                    #     VarejoModule(user)
                     else:
                         messagebox.showerror("Erro", "Módulo do usuário não encontrado. Contate o administrador.")
             else:
@@ -145,7 +152,7 @@ class AdminPanel:
 
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, username, module, is_admin FROM users")
+            cursor.execute("SELECT id, username, IIF(module='0','Corporativo',IIF(module='1','Varejo',IIF(module='2', 'Exportação', ''))), IIF(is_admin='True', 'Sim', 'Não') FROM users")
             rows = cursor.fetchall()
 
             for item in self.tree.get_children():
@@ -244,7 +251,7 @@ class AdminPanel:
         self.root.destroy()
         LoginWindow()
 
-class NovaBOWindow:
+"""class NovaBOWindow:
     def __init__(self, parent):
         self.window = tk.Toplevel(parent)
         self.window.title("Nova BO")
@@ -299,7 +306,7 @@ class NovaBOWindow:
 
 
     def gerar_numero_bo(self):
-        """Obtém o próximo número de BO disponível, mas não o atualiza no banco."""
+        # Obtém o próximo número de BO disponível, mas não o atualiza no banco.
         conn = create_connection()
         if conn is None:
             return "BO000/00"
@@ -330,7 +337,7 @@ class NovaBOWindow:
                 conn.close()
 
     def salvar(self):
-        """Salva a BO no banco e só então incrementa o número da sequência."""
+        # Salva a BO no banco e só então incrementa o número da sequência.
         conn = create_connection()
         if conn is None:
             return
@@ -374,7 +381,7 @@ class NovaBOWindow:
         finally:
             if conn:
                 cursor.close()
-                conn.close()
+                conn.close() """
 
 class NovoUsuarioWindow:
     def __init__(self, parent, admin_panel):

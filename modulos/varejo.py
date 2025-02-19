@@ -6,17 +6,17 @@ from modulos.embarcados import Embarcados
 from database import create_connection
 
 
-class CorporativoModule:
+class VarejoModule:
     instance = None # Var de class que armazena a instância atual
 
     def __init__(self, user):
         self.user= user
         self.root = tk.Tk()
-        self.root.title("Módulo Corporativo")
+        self.root.title("Módulo Varejo")
 
         self.root.state('zoomed')
 
-        CorporativoModule.instance = self     
+        VarejoModule.instance = self     
 
         # Cabeçalho
         header = ttk.Frame(self.root)
@@ -62,7 +62,7 @@ class CorporativoModule:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT bo_number, op, status, tipo_ocorrencia, motivo FROM bo_records WHERE status NOT LIKE 'Embarcado' AND modulo LIKE 'corporativo'")
+                "SELECT bo_number, op, status, tipo_ocorrencia, motivo FROM bo_records WHERE status NOT LIKE 'Embarcado' AND modulo LIKE 'varejo'")
             rows = cursor.fetchall()
 
             # Remove todos os itens atuais da Treeview
@@ -102,7 +102,7 @@ class CorporativoModule:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT bo_number, op, status, tipo_ocorrencia, motivo FROM bo_records WHERE modulo LIKE 'corporativo' AND status NOT LIKE 'Embarcado' AND bo_number LIKE ?", (f"%{termo}%",))
+                "SELECT bo_number, op, status, tipo_ocorrencia, motivo FROM bo_records WHERE modulo LIKE 'varejo' AND status NOT LIKE 'Embarcado' AND bo_number LIKE ?", (f"%{termo}%",))
             rows = cursor.fetchall()
 
             self.tree.delete(*self.tree.get_children())
@@ -129,7 +129,7 @@ class CorporativoModule:
     def buscar_bo(self):
         from modulos.buscarBo import buscarBo
         obj = buscarBo(self.root)
-        resultado = obj.identificar_chamador("corporativo")
+        resultado = obj.identificar_chamador("varejo")
         print(resultado)
 
     def logoff(self):

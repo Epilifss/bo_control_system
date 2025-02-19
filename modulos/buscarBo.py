@@ -8,10 +8,14 @@ from database import create_connection
 
 class buscarBo:
     def __init__(self, parent):
+
         self.parent = parent
         self.root = tk.Toplevel(parent)
         self.root.title("Buscar BO")
         self.root.geometry("1000x600")
+        self.root.state('zoomed')
+
+
         self.ultimo_modulo = None
 
         # Cabeçalho
@@ -30,11 +34,11 @@ class buscarBo:
         ttk.Button(search_frame, text="Pesquisar",
                    command=self.pesquisar_bo).pack(side=tk.LEFT)
 
-        # Frame para o Treeview e a barra de rolagem
+        # Frame para Treeview e barra de rolagem
         tree_frame = ttk.Frame(self.root)
         tree_frame.pack(expand=True, fill=tk.BOTH, padx=10, pady=(0, 10))
 
-        # Treeview (lista de BOs)
+        # lista de BOs Treeview
         self.tree = ttk.Treeview(
             tree_frame,
             columns=("C5_PEDREPR", "C5_NUM", "C5_NOME",
@@ -53,17 +57,15 @@ class buscarBo:
             tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
         v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Configura o Treeview para usar a barra de rolagem
         self.tree.configure(yscrollcommand=v_scrollbar.set)
         self.tree.pack(expand=True, fill=tk.BOTH, side=tk.LEFT)
 
-        self.tree.bind("<Double-1>", self.exibir_detalhes)
+        self.tree.bind("<Double-1>", lambda event: exibir_detalhes(self.root, self.tree))
 
         self.center_window()
         self.carregar_bos()
 
     def center_window(self):
-        # Centraliza a janela na tela
         self.root.update_idletasks()
         width = self.root.winfo_width()
         height = self.root.winfo_height()
@@ -162,7 +164,30 @@ class buscarBo:
                 cursor.close()
                 conn.close()
 
-    def exibir_detalhes(self, event):
+class exibir_detalhes():
+    def __init__(self, parent, tree):
+        self.window = tk.Toplevel(parent)
+        self.window.title("Detalhes BO")
+        self.window.grab_set()
+
+        self.tree = tree
+        self.ultimo_modulo = None
+
+        self.center_window()
+        self.sc5_detalhes()
+        
+    def sc5_detalhes(self):
+        self.window.grid_rowconfigure(0, weight=1)
+        self.window.grid_columnconfigure(0, weight=1)
+
+        self.ultimo_modulo = None
+
+        frame_sc5Detalhes = ttk.LabelFrame(self.window, text="Detalhes da Ocorrência", padding=10)
+        frame_sc5Detalhes.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
+        frame_sc5Detalhes.grid_rowconfigure(0, weight=1)
+        frame_sc5Detalhes.grid_columnconfigure(1, weight=1)  # Permite expansão da segunda coluna
+
         # Obtém o item selecionado no Treeview
         item_selecionado = self.tree.selection()
         if not item_selecionado:
@@ -171,46 +196,55 @@ class buscarBo:
         # Obtém os valores do item selecionado
         valores = self.tree.item(item_selecionado, "values")
 
-        # Cria uma nova janela para exibir os detalhes
-        detalhes_janela = tk.Toplevel(self.root)
-        detalhes_janela.title("Detalhes do BO")
-        detalhes_janela.geometry("600x400")
+        # Criando as labels
+        labels = ["BO:", "OP:", "CLIENTE:", "FILIAL:", "EMISSÃO:", "PREVISÃO DE ENTREGA:"]
+        for i, label_text in enumerate(labels):
+            ttk.Label(frame_sc5Detalhes, text=label_text).grid(row=i, column=0, sticky="w", padx=5, pady=2)
+            ttk.Label(frame_sc5Detalhes, text=valores[i]).grid(row=i, column=1, sticky="ew", padx=5, pady=2)
+        ttk.Button(frame_sc5Detalhes, text="Acompanhar BO", command=self.acompanhar_bo).grid(row=i, column=2, sticky="e", padx=5, pady=2)
 
-        # Exibe os detalhes na nova janela
-        tk.Label(detalhes_janela, text=f"BO: {valores[0]}").pack(
-            pady=5, side=tk.LEFT)
-        tk.Label(detalhes_janela, text=f"OP: {valores[1]}").pack(pady=5)
-        tk.Label(detalhes_janela, text=f"CLIENTE: {valores[2]}").pack(pady=5)
-        tk.Label(detalhes_janela, text=f"FILIAL: {valores[3]}").pack(pady=5)
-        tk.Label(detalhes_janela, text=f"EMISSÃO: {valores[4]}").pack(pady=5)
-        tk.Label(detalhes_janela,
-                 text=f"PREVISÃO DE ENTREGA: {valores[5]}").pack(pady=5)
+        self.window.update_idletasks()
+        self.window.minsize(400, self.window.winfo_height())
 
-        ttk.Button(detalhes_janela, text="Acompanhar BO",
-                   command=self.acompanhar_bo).pack(side=tk.LEFT)
+    def center_window(self):
+        self.window.update_idletasks()
+        width = self.window.winfo_width()
+        height = self.window.winfo_height()
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        self.window.geometry(f"{width}x{height}+{x}+{y}")
+
+    def identificar_chamador(self, caller_id=None):
+        if caller_id is None:
+            raise ValueError(
+                "É necessário informar o identificador do módulo que chamou a função")
+        self.ultimo_modulo = caller_id
+        return f"Buscar BO chamado pelo módulo: {caller_id}"
 
     def acompanhar_bo(self):
-        obj = acompanhar_Bo(self.root, self.tree)
-        resultado = obj.identificar_chamador("corporativo")
+        obj = acompanhar_Bo(self.window, self.tree)
+        resultado = obj.identificar_chamador(caller_id=self.ultimo_modulo)
         print(resultado)
 
 
 class acompanhar_Bo:
     def __init__(self, parent, tree):
         self.window = tk.Toplevel(parent)
-        self.window.title("Nova BO")
+        self.window.title("Acompanhar BO")
         self.window.grab_set()
 
         self.tree = tree
         self.ultimo_modulo = None
         self.bo_dados = self.obter_dados_bo()
 
-        self.criar_secao_dados_gerais()
-        self.criar_secao_ocorrencia()
-        self.criar_secao_transporte()
-        self.criar_botao_salvar()
+        self.secao_dados_gerais()
+        self.secao_ocorrencia()
+        self.secao_transporte()
+        self.botao_salvar()
 
-    def criar_secao_dados_gerais(self):
+    def secao_dados_gerais(self):
         """Cria a seção de dados gerais da BO."""
         frame_dados_gerais = ttk.LabelFrame(self.window, text="Dados Gerais", padding=10)
         frame_dados_gerais.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
@@ -225,7 +259,7 @@ class acompanhar_Bo:
         ttk.Label(frame_dados_gerais, text="CLIENTE:").grid(row=2, column=0, sticky=tk.W)
         ttk.Label(frame_dados_gerais, text=self.bo_dados[2]).grid(row=2, column=1, sticky=tk.W)
 
-    def criar_secao_ocorrencia(self):
+    def secao_ocorrencia(self):
         """Cria a seção de detalhes da ocorrência."""
         frame_ocorrencia = ttk.LabelFrame(self.window, text="Detalhes da Ocorrência", padding=10)
         frame_ocorrencia.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
@@ -246,31 +280,31 @@ class acompanhar_Bo:
             entry.grid(row=i, column=1, sticky="ew")
             self.entries_ocorrencia[campo] = entry
 
-    def criar_secao_transporte(self):
+    def secao_transporte(self):
         """Cria a seção de detalhes do transporte."""
         frame_transporte = ttk.LabelFrame(self.window, text="Transporte", padding=10)
         frame_transporte.grid(row=2, column=0, sticky="ew", padx=10, pady=10)
 
+        ttk.Label(frame_transporte, text="Previsão de entrega:").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(frame_transporte, text=self.bo_dados[5]).grid(row=0, column=1, sticky=tk.W)
+
         campos_transporte = [
             ("Frete", ttk.Combobox, ["CIF", "FOB"]),
-            ("Previsão de Embarque", DateEntry),
             ("NF de Envio", ttk.Entry),
             ("NF de Devolução", ttk.Entry),
         ]
 
         self.entries_transporte = {}
-        for i, (campo, widget, *args) in enumerate(campos_transporte):
+        for i, (campo, widget, *args) in enumerate(campos_transporte, start=1):
             ttk.Label(frame_transporte, text=f"{campo}:").grid(row=i, column=0, sticky=tk.W)
             if widget == ttk.Combobox:
                 entry = widget(frame_transporte, values=args[0])
-            elif widget == DateEntry:
-                entry = widget(frame_transporte)
             else:
                 entry = widget(frame_transporte)
             entry.grid(row=i, column=1, sticky="ew")
             self.entries_transporte[campo] = entry
 
-    def criar_botao_salvar(self):
+    def botao_salvar(self):
         """Cria o botão de salvar."""
         frame_botoes = ttk.Frame(self.window, padding=10)
         frame_botoes.grid(row=3, column=0, sticky="ew", padx=10, pady=10)
@@ -304,7 +338,7 @@ class acompanhar_Bo:
         return None
 
     def salvar(self):
-        """Salva a BO no banco e só então incrementa o número da sequência."""
+        # Salva a BO no banco e só então incrementa o número da sequência.
         conn = create_connection()
         if conn is None:
             return
@@ -321,23 +355,26 @@ class acompanhar_Bo:
                 self.entries_ocorrencia["Motivo"].get(),  # Motivo
                 self.entries_ocorrencia["Descrição"].get(),  # Descrição
                 self.entries_transporte["Frete"].get(),  # Frete
-                self.entries_transporte["Previsão de Embarque"].get(),  # Previsão de Embarque
+                self.bo_dados[5],  # Previsão de Embarque
                 self.entries_transporte["NF de Envio"].get(),  # NF de Envio
                 self.entries_transporte["NF de Devolução"].get(),  # NF de Devolução
-                self.ultimo_modulo  # Módulo que chamou a função
+                self.ultimo_modulo,  # Módulo que chamou a função
+                'Em Andamento' # Status
             ]
 
-            # Insere a BO no banco de dados
-            cursor.execute('''
-                IF NOT EXISTS (SELECT 1 FROM bo_records WHERE bo_number = ?)
-                BEGIN
+            # Primeiro, verifica se o BO já existe
+            cursor.execute("SELECT 1 FROM bo_records WHERE bo_number = ?", (self.bo_dados[0],))
+            exists = cursor.fetchone()
+
+            if not exists:
+                # Agora, insere os dados
+                cursor.execute('''
                     INSERT INTO bo_records (
                         bo_number, op, loja, tipo_ocorrencia, motivo, descricao,
                         frete, previsao_embarque, nf_envio, nf_devolucao, modulo, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Em Andamento')
-                END
-            ''', valores)
-            conn.commit()
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', valores)
+                conn.commit()
 
             # Atualiza a sequência APÓS salvar
             cursor.execute("UPDATE bo_sequence SET last_number = last_number + 1")
@@ -349,11 +386,19 @@ class acompanhar_Bo:
             # Atualiza a lista de BOs no módulo corporativo, se necessário
             if self.ultimo_modulo == "corporativo":
                 from modulos.corporativo import CorporativoModule
-                corporativo_module = CorporativoModule(self.window.master)  # Passa a janela principal como parent
-                corporativo_module.carregar_bos()
+                if CorporativoModule.instance is not None:
+                    CorporativoModule.instance.carregar_bos()
+                else:
+                    pass
+            elif self.ultimo_modulo == "varejo":
+                print('tentou atualizar varejo')
+                from modulos.varejo import VarejoModule
+                if VarejoModule.instance is not None:
+                    VarejoModule.instance.carregar_bos()
 
         except pyodbc.Error as e:
             messagebox.showerror("Erro", f"Erro ao salvar BO: {e}")
+            print(e)
         finally:
             if conn:
                 cursor.close()
