@@ -128,8 +128,8 @@ class CorporativoModule:
 
     def buscar_bo(self):
         from modulos.buscarBo import buscarBo
-        obj = buscarBo(self.root)
-        resultado = obj.identificar_chamador("corporativo")
+        obj = buscarBo(self.root, caller_id="Corporativo")
+        resultado = obj.identificar_chamador()
         print(resultado)
 
     def logoff(self):

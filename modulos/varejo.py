@@ -128,8 +128,8 @@ class VarejoModule:
 
     def buscar_bo(self):
         from modulos.buscarBo import buscarBo
-        obj = buscarBo(self.root)
-        resultado = obj.identificar_chamador("varejo")
+        obj = buscarBo(self.root, caller_id="varejo")
+        resultado = obj.identificar_chamador()
         print(resultado)
 
     def logoff(self):

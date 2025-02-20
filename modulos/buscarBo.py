@@ -5,18 +5,15 @@ from tkcalendar import DateEntry
 from database import create_connection_mikonos
 from database import create_connection
 
-
 class buscarBo:
-    def __init__(self, parent):
-
+    def __init__(self, parent, caller_id=None):
         self.parent = parent
         self.root = tk.Toplevel(parent)
         self.root.title("Buscar BO")
         self.root.geometry("1000x600")
         self.root.state('zoomed')
 
-
-        self.ultimo_modulo = None
+        self.ultimo_modulo = caller_id
 
         # Cabeçalho
         header = ttk.Frame(self.root)
@@ -60,7 +57,7 @@ class buscarBo:
         self.tree.configure(yscrollcommand=v_scrollbar.set)
         self.tree.pack(expand=True, fill=tk.BOTH, side=tk.LEFT)
 
-        self.tree.bind("<Double-1>", lambda event: exibir_detalhes(self.root, self.tree))
+        self.tree.bind("<Double-1>", lambda event: exibir_detalhes(self.root, self.tree, caller_id=self.ultimo_modulo))
 
         self.center_window()
         self.carregar_bos()
@@ -75,12 +72,11 @@ class buscarBo:
         y = (screen_height - height) // 2
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
-    def identificar_chamador(self, caller_id=None):
-        if caller_id is None:
+    def identificar_chamador(self):
+        if self.ultimo_modulo is None:
             raise ValueError(
                 "É necessário informar o identificador do módulo que chamou a função")
-        self.ultimo_modulo = caller_id
-        return f"Buscar BO chamado pelo módulo: {caller_id}"
+        return f"Buscar BO chamado pelo módulo: {self.ultimo_modulo}"
 
     def carregar_bos(self):
         conn = create_connection_mikonos()
@@ -165,22 +161,21 @@ class buscarBo:
                 conn.close()
 
 class exibir_detalhes():
-    def __init__(self, parent, tree):
+    def __init__(self, parent, tree, caller_id=None):
         self.window = tk.Toplevel(parent)
         self.window.title("Detalhes BO")
         self.window.grab_set()
 
         self.tree = tree
-        self.ultimo_modulo = None
+        self.ultimo_modulo = caller_id
 
         self.center_window()
         self.sc5_detalhes()
+        self.itens_bo()
         
     def sc5_detalhes(self):
         self.window.grid_rowconfigure(0, weight=1)
         self.window.grid_columnconfigure(0, weight=1)
-
-        self.ultimo_modulo = None
 
         frame_sc5Detalhes = ttk.LabelFrame(self.window, text="Detalhes da Ocorrência", padding=10)
         frame_sc5Detalhes.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
@@ -206,6 +201,54 @@ class exibir_detalhes():
         self.window.update_idletasks()
         self.window.minsize(400, self.window.winfo_height())
 
+    def itens_bo(self):
+        self.window.grid_rowconfigure(0, weight=1)
+        self.window.grid_columnconfigure(0, weight=1)
+
+        frame_itensBo = ttk.LabelFrame(self.window, text="Itens da BO", padding=10)
+        frame_itensBo.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+
+        frame_itensBo.grid_rowconfigure(0, weight=1)
+        frame_itensBo.grid_columnconfigure(1, weight=1)
+
+    def carregar_bos_teste(self):
+        conn = create_connection_mikonos()
+        if conn is None:
+            return
+
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT SC5.C5_PEDREPR, SC6.C6_NUM, SC6.C6_DESCRI, SC6.C6_CODTIDI, SC6.C6_LINHA, CONVERT(VARCHAR,CONVERT(DATETIME,C5_EMISSAO),103) as EMISSAO
+                FROM SC6010 SC6
+                INNER JOIN SC5010 SC5 ON (SC5.C5_NUM = SC6.C6_NUM AND SC5.C5_FILIAL = SC6.C6_FILIAL AND SC5.D_E_L_E_T_ <> '*')
+                WHERE SC6.C6_NUM LIKE '%9057%' AND SC5.C5_PEDREPR LIKE '%BO%'
+            """)
+            rows = cursor.fetchall()
+
+            # Remove todos os itens atuais da Treeview
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            # Insere os dados na Treeview
+            for row in rows:
+                bo = str(row[0]).strip() if row[0] is not None else ""
+                op = str(row[1]).strip() if row[1] is not None else ""
+                cliente = str(row[2]).strip() if row[2] is not None else ""
+                filial = str(row[3]).strip() if row[3] is not None else ""
+                emissao = str(row[4]).strip() if row[4] is not None else ""
+                previsao_entrega = str(
+                    row[5]).strip() if row[5] is not None else ""
+
+                self.tree.insert("", tk.END, values=(
+                    bo, op, cliente, filial, emissao, previsao_entrega))
+        except pyodbc.Error as e:
+            messagebox.showerror("Erro", f"Erro ao carregar BOs: {e}")
+        finally:
+            if conn:
+                cursor.close()
+                conn.close()
+
     def center_window(self):
         self.window.update_idletasks()
         width = self.window.winfo_width()
@@ -216,29 +259,22 @@ class exibir_detalhes():
         y = (screen_height - height) // 2
         self.window.geometry(f"{width}x{height}+{x}+{y}")
 
-    def identificar_chamador(self, caller_id=None):
-        if caller_id is None:
-            raise ValueError(
-                "É necessário informar o identificador do módulo que chamou a função")
-        self.ultimo_modulo = caller_id
-        return f"Buscar BO chamado pelo módulo: {caller_id}"
-
     def acompanhar_bo(self):
-        obj = acompanhar_Bo(self.window, self.tree)
-        resultado = obj.identificar_chamador(caller_id=self.ultimo_modulo)
+        obj = acompanhar_Bo(self.window, self.tree, caller_id=self.ultimo_modulo)
+        resultado = obj.identificar_chamador()
         print(resultado)
 
 
 class acompanhar_Bo:
-    def __init__(self, parent, tree):
+    def __init__(self, parent, tree, caller_id=None):
         self.window = tk.Toplevel(parent)
         self.window.title("Acompanhar BO")
         self.window.grab_set()
 
         self.tree = tree
-        self.ultimo_modulo = None
-        self.bo_dados = self.obter_dados_bo()
+        self.ultimo_modulo = caller_id
 
+        self.bo_dados = self.obter_dados_bo()
         self.secao_dados_gerais()
         self.secao_ocorrencia()
         self.secao_transporte()
@@ -319,12 +355,11 @@ class acompanhar_Bo:
             "Outro"
         ]
     
-    def identificar_chamador(self, caller_id=None):
-
-        if caller_id is None:
-            raise ValueError("É necessário informar o identificador do módulo que chamou a função")
-        self.ultimo_modulo = caller_id
-        return f"Acompanhar BO chamado pelo módulo: {caller_id}"
+    def identificar_chamador(self):
+        if self.ultimo_modulo is None:
+            raise ValueError(
+                "É necessário informar o identificador do módulo que chamou a função")
+        return f"Acompanhar BO chamado pelo módulo: {self.ultimo_modulo}"
 
     def obter_dados_bo(self):
         """Obtém os dados da BO selecionada na Treeview."""
