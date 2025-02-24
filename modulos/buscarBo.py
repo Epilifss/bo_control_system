@@ -164,6 +164,7 @@ class exibir_detalhes():
     def __init__(self, parent, tree, caller_id=None):
         self.window = tk.Toplevel(parent)
         self.window.title("Detalhes BO")
+        self.window.geometry("600x350")
         self.window.grab_set()
 
         self.tree = tree
@@ -211,43 +212,50 @@ class exibir_detalhes():
         frame_itensBo.grid_rowconfigure(0, weight=1)
         frame_itensBo.grid_columnconfigure(1, weight=1)
 
-    def carregar_bos_teste(self):
-        conn = create_connection_mikonos()
-        if conn is None:
+        labels= ["CÓDIGO", "DESCRIÇÃO", "LINHA"]
+
+        item_selecionado2 = self.tree.selection()
+        if not item_selecionado2:
             return
 
+        valores2 = self.tree.item(item_selecionado2, "values")
+
+        conn = create_connection_mikonos()
+        if conn is None:
+            messagebox.showerror("Erro", "Falha ao conectar ao banco de dados")
+            return
+
+        cursor = conn.cursor()
+
+        query = """SELECT SC6.C6_CODTIDI, SC6.C6_DESCRI, SC6.C6_LINHA
+        FROM SC6010 SC6
+        INNER JOIN SC5010 SC5 ON (SC5.C5_NUM = SC6.C6_NUM AND SC5.C5_FILIAL = SC6.C6_FILIAL AND SC5.D_E_L_E_T_ <> '*')
+        WHERE SC6.C6_NUM LIKE ? AND SC5.C5_PEDREPR LIKE ? AND SC5.C5_PEDREPR LIKE ?"""
+
         try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT SC5.C5_PEDREPR, SC6.C6_NUM, SC6.C6_DESCRI, SC6.C6_CODTIDI, SC6.C6_LINHA, CONVERT(VARCHAR,CONVERT(DATETIME,C5_EMISSAO),103) as EMISSAO
-                FROM SC6010 SC6
-                INNER JOIN SC5010 SC5 ON (SC5.C5_NUM = SC6.C6_NUM AND SC5.C5_FILIAL = SC6.C6_FILIAL AND SC5.D_E_L_E_T_ <> '*')
-                WHERE SC6.C6_NUM LIKE '%9057%' AND SC5.C5_PEDREPR LIKE '%BO%'
-            """)
-            rows = cursor.fetchall()
-
-            # Remove todos os itens atuais da Treeview
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-
-            # Insere os dados na Treeview
-            for row in rows:
-                bo = str(row[0]).strip() if row[0] is not None else ""
-                op = str(row[1]).strip() if row[1] is not None else ""
-                cliente = str(row[2]).strip() if row[2] is not None else ""
-                filial = str(row[3]).strip() if row[3] is not None else ""
-                emissao = str(row[4]).strip() if row[4] is not None else ""
-                previsao_entrega = str(
-                    row[5]).strip() if row[5] is not None else ""
-
-                self.tree.insert("", tk.END, values=(
-                    bo, op, cliente, filial, emissao, previsao_entrega))
+            cursor.execute(query, (f"%{valores2[1]}%", "%BO%", f"%{valores2[0]}%"))
+            itens_bo = cursor.fetchall()
         except pyodbc.Error as e:
-            messagebox.showerror("Erro", f"Erro ao carregar BOs: {e}")
+            messagebox.showerror("Erro", f"Erro ao executar a consulta: {e}")
+            return
         finally:
-            if conn:
-                cursor.close()
-                conn.close()
+            cursor.close()
+            conn.close()
+
+
+        for i, label_txt in enumerate(labels):
+            label = ttk.Label(frame_itensBo, text=label_txt)
+            label.grid(row=0, column=i, sticky="w", padx=5, pady=2)
+            frame_itensBo.grid_columnconfigure(i, weight=1)
+
+        for idx, item in enumerate(itens_bo):
+            for col, value in enumerate(item):
+                label = ttk.Label(frame_itensBo, text=value)
+                label.grid(row=idx + 1, column=col, sticky="w", padx=5, pady=2)
+                frame_itensBo.grid_columnconfigure(col, weight=1)
+
+        self.window.update_idletasks()
+        self.window.minsize(400, self.window.winfo_height())
 
     def center_window(self):
         self.window.update_idletasks()
@@ -263,6 +271,11 @@ class exibir_detalhes():
         obj = acompanhar_Bo(self.window, self.tree, caller_id=self.ultimo_modulo)
         resultado = obj.identificar_chamador()
         print(resultado)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = exibir_detalhes(root)
+    root.mainloop()
 
 
 class acompanhar_Bo:
