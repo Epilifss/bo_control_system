@@ -1,7 +1,7 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import pyodbc
-from tkcalendar import DateEntry
+from PIL import Image, ImageTk
 from database import create_connection_mikonos
 from database import create_connection
 
@@ -286,11 +286,13 @@ class acompanhar_Bo:
 
         self.tree = tree
         self.ultimo_modulo = caller_id
+        self.anexos = []
 
         self.bo_dados = self.obter_dados_bo()
         self.secao_dados_gerais()
         self.secao_ocorrencia()
         self.secao_transporte()
+        self.secao_anexo()
         self.botao_salvar()
 
     def secao_dados_gerais(self):
@@ -353,10 +355,81 @@ class acompanhar_Bo:
             entry.grid(row=i, column=1, sticky="ew")
             self.entries_transporte[campo] = entry
 
+    def secao_anexo(self):
+        """Cria a seção de anexos."""
+        frame_anexo = ttk.LabelFrame(self.window, text="Documentos", padding=10)
+        frame_anexo.grid(row=3, column=0, sticky="ew", padx=10, pady=10)
+
+        self.anexo_container = ttk.Frame(frame_anexo)
+        self.anexo_container.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+
+        self.anexo_button = ttk.Button(frame_anexo, text="Anexar Arquivos", command=self.anexar_arquivo)
+        self.anexo_button.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+
+        self.remove_button = ttk.Button(frame_anexo, text="Remover Arquivo", command=self.remover_anexo)
+        self.remove_button.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
+
+
+    def anexar_arquivo(self):
+        """Abre a janela para anexar um arquivo."""
+        file_patchs = filedialog.askopenfilenames(filetypes=[("Imagens", "*.jpg;*.jpeg;*.png"), ("Vídeos", ".mp4;*.avi"), ("Todos os Arquivos", "*.*")])
+
+        if file_patchs:
+            self.anexos.extend(file_patchs)
+            self.atualizar_anexo_exibicao()
+
+    def remover_anexo(self):
+        """Remove o anexo atual."""
+        if self.anexos:
+            self.anexos.pop()
+            self.atualizar_anexo_exibicao()
+
+    def atualizar_anexo_exibicao(self):
+        """Atualiza a exibição dos anexos."""
+        for widget in self.anexo_container.winfo_children():
+            widget.destroy()
+        
+        if self.anexos:
+            for i, file_path in enumerate(self.anexos):
+                if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                    self.exibir_imagem(file_path, i)
+                elif file_path.lower().endswith(('.mp4', '.avi')):
+                    self.exibir_video(file_path, i)
+        else:
+            label = ttk.Label(self.anexo_container, text="Nenhum Arquivo Anexado.")
+
+            label.pack()
+
+    def exibir_imagem(self, file_patch, index):
+        img = Image.open(file_patch)
+        img.thumbnail((100, 100))
+        img = ImageTk.PhotoImage(img)
+        
+        label = ttk.Label(self.anexo_container, image=img)
+        label.image = img
+        label.grid(row=0, column=index, padx=5, pady=5)
+
+        self.lixeira_icone = ImageTk.PhotoImage(Image.open("./images/lixeira.png").resize((20, 20)))
+        remove_button = ttk.Button(self.anexo_container, image=self.lixeira_icone, command=lambda img=file_patch: self.remover_imagem(img))
+        remove_button.image = self.lixeira_icone
+        remove_button.grid(row=0, column=index+1, padx=5, pady=5)
+
+    def remover_imagem(self, file_path):
+        """Remove a imagem e o botão de remoção do container."""
+        for widget in self.anexo_container.winfo_children():
+            if file_path in widget.winfo_children():
+                widget.destroy()
+        self.atualizar_anexo_exibicao()
+
+    def exibir_video(self, file_path):
+        """Exibe um vídeo (requer biblioteca adicional como tkvideo)."""
+        # Aqui você pode adicionar lógica para exibir o vídeo
+        messagebox.showinfo("Aviso", "Exibição de vídeo não implementada. Arquivo selecionado: " + file_path)
+
     def botao_salvar(self):
         """Cria o botão de salvar."""
         frame_botoes = ttk.Frame(self.window, padding=10)
-        frame_botoes.grid(row=3, column=0, sticky="ew", padx=10, pady=10)
+        frame_botoes.grid(row=4, column=0, sticky="ew", padx=10, pady=10)
 
         ttk.Button(frame_botoes, text="Salvar", command=self.salvar).pack(side=tk.RIGHT)
 
