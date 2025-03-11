@@ -366,9 +366,6 @@ class acompanhar_Bo:
         self.anexo_button = ttk.Button(frame_anexo, text="Anexar Arquivos", command=self.anexar_arquivo)
         self.anexo_button.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
-        self.remove_button = ttk.Button(frame_anexo, text="Remover Arquivo", command=self.remover_anexo)
-        self.remove_button.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
-
 
     def anexar_arquivo(self):
         """Abre a janela para anexar um arquivo."""
@@ -402,24 +399,26 @@ class acompanhar_Bo:
 
     def exibir_imagem(self, file_patch, index):
         img = Image.open(file_patch)
-        img.thumbnail((100, 100))
+        img.thumbnail((50, 50))
         img = ImageTk.PhotoImage(img)
         
         label = ttk.Label(self.anexo_container, image=img)
         label.image = img
-        label.grid(row=0, column=index, padx=5, pady=5)
+        label.grid(row=0, column=index * 2, padx=5, pady=5)
 
         self.lixeira_icone = ImageTk.PhotoImage(Image.open("./images/lixeira.png").resize((20, 20)))
         remove_button = ttk.Button(self.anexo_container, image=self.lixeira_icone, command=lambda img=file_patch: self.remover_imagem(img))
         remove_button.image = self.lixeira_icone
-        remove_button.grid(row=0, column=index+1, padx=5, pady=5)
+        remove_button.grid(row=0, column=index * 2 + 1, padx=5, pady=5)
 
     def remover_imagem(self, file_path):
         """Remove a imagem e o botão de remoção do container."""
-        for widget in self.anexo_container.winfo_children():
-            if file_path in widget.winfo_children():
-                widget.destroy()
-        self.atualizar_anexo_exibicao()
+        if file_path in self.anexos:
+            self.anexos.remove(file_path)
+            self.atualizar_anexo_exibicao()
+            print(f"Arquivo removido: {file_path}")
+        else:
+            print("Arquivo não encontrado na lista de anexos.")
 
     def exibir_video(self, file_path):
         """Exibe um vídeo (requer biblioteca adicional como tkvideo)."""
