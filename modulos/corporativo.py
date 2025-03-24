@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import pyodbc
 from telas import *
-from modulos.embarcados import Embarcados
+from components import *
 from database import create_connection
 
 
@@ -14,6 +14,8 @@ class CorporativoModule:
         self.root = tk.Tk()
         self.root.title("Módulo Corporativo")
 
+        from telas import Embarcados
+
         self.root.state('zoomed')
 
         CorporativoModule.instance = self     
@@ -22,7 +24,7 @@ class CorporativoModule:
         header = ttk.Frame(self.root)
         header.pack(fill=tk.X)
 
-        ttk.Button(header, text="Embarcados", command= lambda: Embarcados(user)).pack(side=tk.LEFT)
+        ttk.Button(header, text="Embarcados", command= lambda: Embarcados(user, caller_id="Corporativo")).pack(side=tk.LEFT)
         ttk.Button(header, text="Estatísticas").pack(side=tk.LEFT)
         ttk.Button(header, text="Gerar Relatório").pack(side=tk.LEFT)
         ttk.Button(header, text="Logoff",
@@ -33,12 +35,7 @@ class CorporativoModule:
                    command= self.buscar_bo).pack(side=tk.RIGHT)
 
         # Barra de pesquisa
-        search_frame = ttk.Frame(self.root)
-        search_frame.pack(fill=tk.X)
-        self.search_entry = ttk.Entry(search_frame)
-        self.search_entry.pack(side=tk.LEFT, expand=True, fill=tk.X)
-        ttk.Button(search_frame, text="Pesquisar",
-                   command=self.pesquisar_bo).pack(side=tk.LEFT)
+        self.search_bar = SearchBar(self.root, self.pesquisar_bo, self.clear_search)
 
         # Lista de BOs
         self.tree = ttk.Treeview(self.root, columns=(
@@ -52,6 +49,7 @@ class CorporativoModule:
         self.tree.pack(expand=True, fill=tk.BOTH)
 
         self.carregar_bos()
+        self.search_bar.search_entry.bind('<Return>', self.pesquisar_bo)
         self.root.mainloop()
 
     def carregar_bos(self):
@@ -90,8 +88,8 @@ class CorporativoModule:
                 cursor.close()
                 conn.close()
 
-    def pesquisar_bo(self):
-        termo = self.search_entry.get()
+    def pesquisar_bo(self, event=None):
+        termo = self.search_bar.search_entry.get()
         if not termo:
             return
 
@@ -126,8 +124,13 @@ class CorporativoModule:
                 cursor.close()
                 conn.close()
 
+    def clear_search(self):
+        self.search_bar.search_entry.delete(0, tk.END)
+        self.search_bar.update_buttons()  # Atualiza os botões após limpar
+        self.carregar_bos()  # Recarrega os BOs
+
     def buscar_bo(self):
-        from modulos.buscarBo import buscarBo
+        from telas import buscarBo
         obj = buscarBo(self.root, caller_id="Corporativo")
         resultado = obj.identificar_chamador()
         print(resultado)
