@@ -79,7 +79,7 @@ class LoginWindow:
             cursor.execute(
                 "SELECT * FROM users WHERE username COLLATE Latin1_General_BIN=? AND password_hash COLLATE Latin1_General_BIN=?", (username, hashed_pw))
             user = cursor.fetchone()
-            print(user)
+            print(f"Usuário {user[1]} logado com sucesso!")
 
             if user:
                 if user[4]:  # is_admin
