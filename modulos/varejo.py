@@ -21,18 +21,7 @@ class VarejoModule:
         VarejoModule.instance = self     
 
         # Cabeçalho
-        header = ttk.Frame(self.root)
-        header.pack(fill=tk.X)
-
-        ttk.Button(header, text="Embarcados", command= lambda: Embarcados(user, caller_id="Varejo")).pack(side=tk.LEFT)
-        ttk.Button(header, text="Estatísticas").pack(side=tk.LEFT)
-        ttk.Button(header, text="Gerar Relatório").pack(side=tk.LEFT)
-        ttk.Button(header, text="Logoff",
-                   command=self.logoff).pack(side=tk.RIGHT)
-        ttk.Button(header, text="Atualizar",
-                   command=lambda: self.carregar_bos()).pack(side=tk.RIGHT)
-        ttk.Button(header, text="Buscar BO",
-                   command= self.buscar_bo).pack(side=tk.RIGHT)
+        self.header = Header(self.root, self.user, caller_id="Varejo")
 
         # Barra de pesquisa
         self.search_bar = SearchBar(self.root, self.pesquisar_bo, self.clear_search)
@@ -128,14 +117,3 @@ class VarejoModule:
         self.search_bar.search_entry.delete(0, tk.END)
         self.search_bar.update_buttons()  # Atualiza os botões após limpar
         self.carregar_bos()  # Recarrega os BOs
-
-    def buscar_bo(self):
-        from telas import buscarBo
-        obj = buscarBo(self.root, caller_id="Varejo")
-        resultado = obj.identificar_chamador()
-        print(resultado)
-
-    def logoff(self):
-        self.root.destroy()
-        from telas import LoginWindow
-        LoginWindow()

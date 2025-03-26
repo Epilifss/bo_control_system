@@ -9,6 +9,7 @@ import hashlib
 import os
 from modulos.corporativo import CorporativoModule
 from modulos.varejo import VarejoModule
+# from modulos.exportacao import ExportacaoModule
 from components import *
 from database import create_connection_mikonos
 from database import create_connection
@@ -95,7 +96,7 @@ class LoginWindow:
                         VarejoModule(user)
                     # elif (module) == '2':
                     #     self.root.destroy()
-                    #     VarejoModule(user)
+                    #     ExportacaoModule(user)
                     else:
                         messagebox.showerror(
                             "Erro", "Módulo do usuário não encontrado. Contate o administrador.")
@@ -543,6 +544,15 @@ class Embarcados:
         self.search_bar.update_buttons()  # Atualiza os botões após limpar
         self.carregar_bos()  # Recarrega os BOs
 
+class Estatisticas:
+    def __init__(self, user, caller_id=None):
+        self.user = user
+        self.root = tk.Tk()
+        self.root.title("Estatísticas")
+        self.root.geometry("1000x600")
+
+        self.ultimo_modulo = caller_id
+        print(self.identificar_chamador())
 
 class buscarBo:
     def __init__(self, parent, caller_id=None):
