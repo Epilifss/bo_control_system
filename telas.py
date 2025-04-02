@@ -7,6 +7,9 @@ from PIL import Image, ImageTk
 import pyodbc
 import hashlib
 import os
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from modulos.corporativo import CorporativoModule
 from modulos.varejo import VarejoModule
 # from modulos.exportacao import ExportacaoModule
@@ -69,6 +72,7 @@ class LoginWindow:
         username = self.username.get()
         password = self.password.get()
         hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+        
 
         conn = create_connection()
         if conn is None:
@@ -80,22 +84,28 @@ class LoginWindow:
             cursor.execute(
                 "SELECT * FROM users WHERE username COLLATE Latin1_General_BIN=? AND password_hash COLLATE Latin1_General_BIN=?", (username, hashed_pw))
             user = cursor.fetchone()
-            print(f"Usuário {user[1]} logado com sucesso!")
+            
 
             if user:
+                printUser = (f"Usuário {user[1]} logou no ")
+
                 if user[4]:  # is_admin
                     self.root.destroy()
+                    print(printUser + "painel de administração")
                     AdminPanel()
                 else:
                     module = user[3]
                     if (module) == '0':
                         self.root.destroy()
+                        print(printUser + "módulo Corporativo")
                         CorporativoModule(user)
                     elif (module) == '1':
                         self.root.destroy()
+                        print(printUser + "módulo Varejo")
                         VarejoModule(user)
                     # elif (module) == '2':
                     #     self.root.destroy()
+                    #     print(printUser + "no módulo Exportação")
                     #     ExportacaoModule(user)
                     else:
                         messagebox.showerror(
@@ -463,7 +473,7 @@ class Embarcados:
         if self.ultimo_modulo is None:
             raise ValueError(
                 "É necessário informar o identificador do módulo que chamou a função")
-        return f"Embarcados chamado pelo módulo: {self.ultimo_modulo}"
+        return f"Tela de embarcados chamada pelo módulo: {self.ultimo_modulo}"
 
     def carregar_bos(self):
         conn = create_connection()
@@ -544,15 +554,99 @@ class Embarcados:
         self.search_bar.update_buttons()  # Atualiza os botões após limpar
         self.carregar_bos()  # Recarrega os BOs
 
+
 class Estatisticas:
     def __init__(self, user, caller_id=None):
         self.user = user
         self.root = tk.Tk()
         self.root.title("Estatísticas")
         self.root.geometry("1000x600")
+        self.root.state('zoomed')
 
         self.ultimo_modulo = caller_id
         print(self.identificar_chamador())
+        
+        def obter_anos():
+            conn = create_connection_mikonos()
+            cursor = conn.cursor()
+
+            cursor.execute(f"SELECT DISTINCT YEAR(C5_EMISSAO) AS ano FROM SC5010 ORDER BY ano DESC")
+            anos = [row[0] for row in cursor.fetchall()]
+
+            cursor.close()
+            conn.close()
+
+            return anos
+        
+        def obter_setores():
+            conn = create_connection()
+            cursor = conn.cursor()
+
+            cursor.execute(f"SELECT setor_responsavel FROM [bo_system].[dbo].[bo_records]")
+            setores = [row[0] for row in cursor.fetchall()]
+
+            cursor.close()
+            conn.close()
+
+            return setores
+        
+        def obter_contagens_por_setor():
+            conn = create_connection()
+            cursor = conn.cursor()
+
+            cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado'), COUNT(*) FROM [bo_system].[dbo].[bo_records] GROUP BY setor_responsavel")
+            contagens = {row[0]: row[1] for row in cursor.fetchall()}
+            cursor.close()
+            conn.close()
+
+            return contagens
+
+        # Cabeçalho
+        header = ttk.Frame(self.root)
+        header.pack(fill=tk.X, padx=10, pady=10)
+
+        anos = obter_anos()
+        setores = obter_setores()
+        contagem = obter_contagens_por_setor()        
+        ttk.Label(header, text="Ano: ").pack(side=tk.LEFT)
+
+        listaAnos = ttk.Combobox(header, values=anos, state="readonly")
+        listaAnos.pack(side=tk.LEFT)
+        listaAnos.set(anos[0])
+        
+        ttk.Button(header, text="Fechar",
+                   command=lambda: self.root.destroy()).pack(side=tk.RIGHT)
+        
+        # Gráfico
+
+        frame = ttk.Frame(self.root, padding="3 3 12 12")
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        fig = Figure(figsize=(8, 6), dpi=100)
+        ax = fig.add_subplot(111)
+        
+        contagens_completo = [contagem.get(sector, 0) for sector in setores]
+        ax.bar(setores, contagens_completo, color='green')
+        ax.set_title("Contagem de BO's por setor")
+        ax.set_xlabel("Setor")
+        ax.set_ylabel("Contagem")
+        
+        plt.xticks(rotation=45)
+        
+        
+        canvas = FigureCanvasTkAgg(fig, master=frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        root.mainloop()
+
+        
+    def identificar_chamador(self):
+        if self.ultimo_modulo is None:
+            raise ValueError(
+                "É necessário informar o identificador do módulo que chamou a função")
+        return f"Tela de estatísticas chamada pelo módulo: {self.ultimo_modulo}"
+
 
 class buscarBo:
     def __init__(self, parent, caller_id=None):
@@ -622,7 +716,7 @@ class buscarBo:
         if self.ultimo_modulo is None:
             raise ValueError(
                 "É necessário informar o identificador do módulo que chamou a função")
-        return f"Buscar BO chamado pelo módulo: {self.ultimo_modulo}"
+        return f"Tela de Buscar BO chamada pelo módulo: {self.ultimo_modulo}"
 
     def carregar_bos(self):
         conn = create_connection_mikonos()
@@ -846,13 +940,6 @@ class exibir_detalhes():
         resultado = obj.identificar_chamador()
         print(resultado)
 
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = exibir_detalhes(root)
-    root.mainloop()
-
-
 class acompanhar_Bo:
     def __init__(self, parent, tree, caller_id=None):
         self.parent = parent
@@ -895,17 +982,31 @@ class acompanhar_Bo:
             row=2, column=0, sticky=tk.W)
         ttk.Label(frame_dados_gerais, text=self.bo_dados[2]).grid(
             row=2, column=1, sticky=tk.W)
+        
+    def obter_setores(self):
+        conn = create_connection()
+        cursor = conn.cursor()
+    
+        cursor.execute("SELECT setor_responsavel FROM bo_records")
+        setores = [row[0] for row in cursor.fetchall()]
+
+        cursor.close()
+        conn.close()
+
+        return setores
 
     def secao_ocorrencia(self):
-        """Cria a seção de detalhes da ocorrência."""
+        # Cria a seção de detalhes da ocorrência.
         frame_ocorrencia = ttk.LabelFrame(
             self.window, text="Detalhes da Ocorrência", padding=10)
         frame_ocorrencia.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+        
 
         campos_ocorrencia = [
             ("Tipo de Ocorrência", ttk.Entry),
             ("Motivo", ttk.Combobox, self.motivos()),
             ("Descrição", ttk.Entry),
+            ("Setor Responsável", ttk.Combobox, self.obter_setores())
         ]
 
         self.entries_ocorrencia = {}
@@ -966,15 +1067,18 @@ class acompanhar_Bo:
         for file_path in file_paths:
             total_size += os.path.getsize(file_path)
             if total_size > self.max_tamanho_anexo:
-                messagebox.showerror("Erro", "Você excedeu o limite de 50MB total de anexo.")
+                messagebox.showerror(
+                    "Erro", "Você excedeu o limite de 50MB total de anexo.")
                 return
 
         if len(self.anexos) + len(file_paths) > self.max_anexos:
-            messagebox.showerror("Erro", f"Você não pode anexar mais do que {self.max_anexos} arquivos.")
+            messagebox.showerror(
+                "Erro", f"Você não pode anexar mais do que {self.max_anexos} arquivos.")
             return
 
         self.mostrar_texto_carregamento()
-        threading.Thread(target=self.processar_anexos, args=(file_paths,)).start()
+        threading.Thread(target=self.processar_anexos,
+                         args=(file_paths,)).start()
 
     def mostrar_texto_carregamento(self):
         # Remover o frame de carregamento, se já existir
@@ -982,7 +1086,8 @@ class acompanhar_Bo:
             widget.destroy()
 
         # Criar um widget para o texto de carregamento
-        self.loading_widget = ttk.Label(self.anexo_container, text="Carregando anexo...", font=("Arial", 11))
+        self.loading_widget = ttk.Label(
+            self.anexo_container, text="Carregando anexo...", font=("Arial", 11))
         self.loading_widget.grid(row=0, column=0, padx=5, pady=5)
         print("Texto de carregamento sendo exibido")
 
@@ -1095,7 +1200,7 @@ class acompanhar_Bo:
         if self.ultimo_modulo is None:
             raise ValueError(
                 "É necessário informar o identificador do módulo que chamou a função")
-        return f"Acompanhar BO chamado pelo módulo: {self.ultimo_modulo}"
+        return f"Tela de acompanhar BO chamada pelo módulo: {self.ultimo_modulo}"
 
     def obter_dados_bo(self):
         """Obtém os dados da BO selecionada na Treeview."""
@@ -1126,6 +1231,7 @@ class acompanhar_Bo:
                 self.entries_ocorrencia["Tipo de Ocorrência"].get(),
                 self.entries_ocorrencia["Motivo"].get(),  # Motivo
                 self.entries_ocorrencia["Descrição"].get(),  # Descrição
+                self.entries_ocorrencia["Setor Responsável"].get(),  # Descrição
                 self.entries_transporte["Frete"].get(),  # Frete
                 self.bo_dados[5],  # Previsão de Embarque
                 self.ultimo_modulo,  # Módulo que chamou a função
@@ -1141,9 +1247,9 @@ class acompanhar_Bo:
                 # Agora, insere os dados
                 cursor.execute('''
                     INSERT INTO bo_records (
-                        bo_number, op, loja, tipo_ocorrencia, motivo, descricao,
+                        bo_number, op, loja, tipo_ocorrencia, motivo, descricao, setor_responsavel,
                         frete, previsao_embarque, modulo, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', valores)
                 conn.commit()
 
@@ -1175,3 +1281,8 @@ class acompanhar_Bo:
             if conn:
                 cursor.close()
                 conn.close()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = exibir_detalhes(root)
+    root.mainloop()

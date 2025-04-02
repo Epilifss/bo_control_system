@@ -1,28 +1,69 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
+import pyodbc
+from database import create_connection
 
 # Cabeçalho dos módulos
+
+
 class Header:
-    def __init__(self, parent, user, caller_id=None):
+    def __init__(self, parent, user, caller_id=None, tree=None):
         self.user = user
         self.parent = parent
-        from telas import Embarcados
+        from telas import Embarcados, Estatisticas
 
         self.ultimo_modulo = caller_id
+        self.tree = tree
 
         header = ttk.Frame(self.parent)
         header.pack(fill=tk.X)
 
-        ttk.Button(header, text="Embarcados", command= lambda: Embarcados(user, caller_id=self.ultimo_modulo)).pack(side=tk.LEFT)
-        ttk.Button(header, text="Estatísticas").pack(side=tk.LEFT)
+        ttk.Button(header, text="Embarcados", command=lambda: Embarcados(
+            user, caller_id=self.ultimo_modulo)).pack(side=tk.LEFT)
+        ttk.Button(header, text="Estatísticas", command=lambda: Estatisticas(
+            user, caller_id=self.ultimo_modulo)).pack(side=tk.LEFT)
         ttk.Button(header, text="Gerar Relatório").pack(side=tk.LEFT)
         ttk.Button(header, text="Logoff",
                    command=self.logoff).pack(side=tk.RIGHT)
         ttk.Button(header, text="Atualizar",
                    command=lambda: self.carregar_bos()).pack(side=tk.RIGHT)
         ttk.Button(header, text="Buscar BO",
-                   command= self.buscar_bo).pack(side=tk.RIGHT)
-        
+                   command=self.buscar_bo).pack(side=tk.RIGHT)
+
+    def carregar_bos(self):
+        conn = create_connection()
+        if conn is None:
+            return
+
+        try:
+            cursor = conn.cursor()
+            query = ("SELECT bo_number, op, status, tipo_ocorrencia, setor_responsavel, motivo FROM bo_records WHERE status NOT LIKE 'Embarcado' AND modulo LIKE ?")
+            cursor.execute(query, self.ultimo_modulo)
+            rows = cursor.fetchall()
+
+            # Remove todos os itens atuais da Treeview
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            # Insere os dados "limpos" na Treeview
+            for row in rows:
+                # Converte cada valor para string (se não for None) e aplica strip para remover caracteres indesejados.
+                bo = str(row[0]).strip("(' ,)") if row[0] is not None else ""
+                op = str(row[1]).strip("(' ,)") if row[1] is not None else ""
+                status = str(row[2]).strip("(' ,)") if row[2] is not None else ""
+                tipo_ocorrencia = str(row[3]).strip("(' ,)") if row[3] is not None else ""
+                setor_responsavel = str(row[4]).strip("(' ,)") if row[4] is not None else ""
+                motivo = str(row[5]).strip("(' ,)") if row[5] is not None else ""
+
+                self.tree.insert("", tk.END, values=(
+                    bo, op, status, tipo_ocorrencia, setor_responsavel, motivo))
+        except pyodbc.Error as e:
+            messagebox.showerror("Erro", f"Erro ao carregar BOs: {e}")
+        finally:
+            if conn:
+                cursor.close()
+                conn.close()
+
     def logoff(self):
         self.parent.destroy()
         from telas import LoginWindow
@@ -34,6 +75,7 @@ class Header:
         obj = buscarBo(parent=self.parent, caller_id=self.ultimo_modulo)
         resultado = obj.identificar_chamador()
         print(resultado)
+
 
 class SearchBar:
     def __init__(self, parent, search_command, clear_command):
@@ -54,7 +96,7 @@ class SearchBar:
         self.clear_button = ttk.Button(
             self.frame, text="Limpar", command=self.clear_command)
         self.clear_button.pack_forget()
-        
+
         self.search_entry.bind('<KeyRelease>', self.update_buttons)
         self.search_entry.bind('<Return>', self.search_command)
 

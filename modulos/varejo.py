@@ -14,68 +14,32 @@ class VarejoModule:
         self.root = tk.Tk()
         self.root.title("Módulo Varejo")
 
-        from telas import Embarcados
-
         self.root.state('zoomed')
 
         VarejoModule.instance = self     
 
-        # Cabeçalho
-        self.header = Header(self.root, self.user, caller_id="Varejo")
-
-        # Barra de pesquisa
-        self.search_bar = SearchBar(self.root, self.pesquisar_bo, self.clear_search)
 
         # Lista de BOs
         self.tree = ttk.Treeview(self.root, columns=(
-            "BO", "OP", "Status", "tipo_ocorrencia", "motivo"), show="headings")
+            "BO", "OP", "Status", "tipo_ocorrencia", "setor_responsavel", "motivo"), show="headings")
         self.tree.heading("BO", text="BO")
         self.tree.heading("OP", text="OP")
         self.tree.heading("Status", text="Status")
         self.tree.heading("tipo_ocorrencia", text="Tipo de Ocorrência")
+        self.tree.heading("setor_responsavel", text="Setor Responsável")
         self.tree.heading("motivo", text="Motivo")
+
+        # Cabeçalho
+        self.header = Header(self.root, self.user, caller_id="Varejo", tree=self.tree)
+
+        # Barra de pesquisa
+        self.search_bar = SearchBar(self.root, self.pesquisar_bo, self.clear_search)
 
         self.tree.pack(expand=True, fill=tk.BOTH)
 
-        self.carregar_bos()
+        self.header.carregar_bos()
         self.search_bar.search_entry.bind('<Return>', self.pesquisar_bo)
         self.root.mainloop()
-
-    def carregar_bos(self):
-        conn = create_connection()
-        if conn is None:
-            return
-
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT bo_number, op, status, tipo_ocorrencia, motivo FROM bo_records WHERE status NOT LIKE 'Embarcado' AND modulo LIKE 'varejo'")
-            rows = cursor.fetchall()
-
-            # Remove todos os itens atuais da Treeview
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-
-            # Insere os dados "limpos" na Treeview
-            for row in rows:
-                # Converte cada valor para string (se não for None) e aplica strip para remover caracteres indesejados.
-                bo = str(row[0]).strip("(' ,)") if row[0] is not None else ""
-                op = str(row[1]).strip("(' ,)") if row[1] is not None else ""
-                status = str(row[2]).strip(
-                    "(' ,)") if row[2] is not None else ""
-                tipo_ocorrencia = str(row[3]).strip(
-                    "(' ,)") if row[3] is not None else ""
-                motivo = str(row[4]).strip(
-                    "(' ,)") if row[4] is not None else ""
-
-                self.tree.insert("", tk.END, values=(
-                    bo, op, status, tipo_ocorrencia, motivo))
-        except pyodbc.Error as e:
-            messagebox.showerror("Erro", f"Erro ao carregar BOs: {e}")
-        finally:
-            if conn:
-                cursor.close()
-                conn.close()
 
     def pesquisar_bo(self, event=None):
         termo = self.search_bar.search_entry.get()
