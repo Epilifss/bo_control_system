@@ -582,7 +582,7 @@ class Estatisticas:
             conn = create_connection()
             cursor = conn.cursor()
 
-            cursor.execute(f"SELECT setor_responsavel FROM [bo_system].[dbo].[bo_records]")
+            cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado') FROM bo_records")
             setores = [row[0] for row in cursor.fetchall()]
 
             cursor.close()
@@ -594,7 +594,7 @@ class Estatisticas:
             conn = create_connection()
             cursor = conn.cursor()
 
-            cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado'), COUNT(*) FROM [bo_system].[dbo].[bo_records] GROUP BY setor_responsavel")
+            cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado'), COUNT(*) FROM bo_records GROUP BY setor_responsavel")
             contagens = {row[0]: row[1] for row in cursor.fetchall()}
             cursor.close()
             conn.close()
