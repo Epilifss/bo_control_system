@@ -7,9 +7,11 @@ from PIL import Image, ImageTk
 import pyodbc
 import hashlib
 import os
+import datetime
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import FuncFormatter
 from modulos.corporativo import CorporativoModule
 from modulos.varejo import VarejoModule
 # from modulos.exportacao import ExportacaoModule
@@ -89,19 +91,22 @@ class LoginWindow:
             if user:
                 printUser = (f"Usuário {user[1]} logou no ")
 
+                horario = datetime.datetime.now()
+                hora = (f"as {horario.hour}:{horario.minute}")
+
                 if user[4]:  # is_admin
                     self.root.destroy()
-                    print(printUser + "painel de administração")
+                    print(printUser + "painel de administração " + hora)
                     AdminPanel()
                 else:
                     module = user[3]
                     if (module) == '0':
                         self.root.destroy()
-                        print(printUser + "módulo Corporativo")
+                        print(printUser + "módulo Corporativo " + hora)
                         CorporativoModule(user)
                     elif (module) == '1':
                         self.root.destroy()
-                        print(printUser + "módulo Varejo")
+                        print(printUser + "módulo Varejo " + hora)
                         VarejoModule(user)
                     # elif (module) == '2':
                     #     self.root.destroy()
@@ -551,9 +556,8 @@ class Embarcados:
 
     def clear_search(self):
         self.search_bar.search_entry.delete(0, tk.END)
-        self.search_bar.update_buttons()  # Atualiza os botões após limpar
-        self.carregar_bos()  # Recarrega os BOs
-
+        self.search_bar.update_buttons()
+        self.carregar_bos()
 
 class Estatisticas:
     def __init__(self, user, caller_id=None):
@@ -566,79 +570,35 @@ class Estatisticas:
         self.ultimo_modulo = caller_id
         print(self.identificar_chamador())
         
-        def obter_anos():
-            conn = create_connection_mikonos()
-            cursor = conn.cursor()
-
-            cursor.execute(f"SELECT DISTINCT YEAR(C5_EMISSAO) AS ano FROM SC5010 ORDER BY ano DESC")
-            anos = [row[0] for row in cursor.fetchall()]
-
-            cursor.close()
-            conn.close()
-
-            return anos
-        
-        def obter_setores():
-            conn = create_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado') FROM bo_records")
-            setores = [row[0] for row in cursor.fetchall()]
-
-            cursor.close()
-            conn.close()
-
-            return setores
-        
-        def obter_contagens_por_setor():
-            conn = create_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado'), COUNT(*) FROM bo_records GROUP BY setor_responsavel")
-            contagens = {row[0]: row[1] for row in cursor.fetchall()}
-            cursor.close()
-            conn.close()
-
-            return contagens
+        self.anos = self.obter_anos()
+        self.setores = self.obter_setores("Todos")
+        self.contagens = self.obter_contagens_por_setor()
+        self.ano_atual = "Todos"
 
         # Cabeçalho
         header = ttk.Frame(self.root)
         header.pack(fill=tk.X, padx=10, pady=10)
 
-        anos = obter_anos()
-        setores = obter_setores()
-        contagem = obter_contagens_por_setor()        
         ttk.Label(header, text="Ano: ").pack(side=tk.LEFT)
-
-        listaAnos = ttk.Combobox(header, values=anos, state="readonly")
-        listaAnos.pack(side=tk.LEFT)
-        listaAnos.set(anos[0])
+        self.listaAnos = ttk.Combobox(header, values=self.anos, state="readonly")
+        self.listaAnos.pack(side=tk.LEFT)
+        self.listaAnos.set(self.ano_atual)
+        self.listaAnos.bind("<<ComboboxSelected>>", self.atualizar_grafico)
         
         ttk.Button(header, text="Fechar",
                    command=lambda: self.root.destroy()).pack(side=tk.RIGHT)
         
         # Gráfico
+        self.frame = ttk.Frame(self.root, padding="3 3 12 12")
+        self.frame.pack(fill=tk.BOTH, expand=True)
+        self.fig = Figure(figsize=(8, 6), dpi=100)
+        self.ax = self.fig.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.atualizar_grafico()
 
-        frame = ttk.Frame(self.root, padding="3 3 12 12")
-        frame.pack(fill=tk.BOTH, expand=True)
-
-        fig = Figure(figsize=(8, 6), dpi=100)
-        ax = fig.add_subplot(111)
-        
-        contagens_completo = [contagem.get(sector, 0) for sector in setores]
-        ax.bar(setores, contagens_completo, color='green')
-        ax.set_title("Contagem de BO's por setor")
-        ax.set_xlabel("Setor")
-        ax.set_ylabel("Contagem")
-        
-        plt.xticks(rotation=45)
-        
-        
-        canvas = FigureCanvasTkAgg(fig, master=frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-        root.mainloop()
+        self.root.mainloop()
 
         
     def identificar_chamador(self):
@@ -646,6 +606,78 @@ class Estatisticas:
             raise ValueError(
                 "É necessário informar o identificador do módulo que chamou a função")
         return f"Tela de estatísticas chamada pelo módulo: {self.ultimo_modulo}"
+
+    def obter_anos(self):
+        conn = create_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(f"SELECT DISTINCT YEAR(emissao_totvs) AS ano FROM bo_records WHERE emissao_totvs IS NOT NULL AND modulo like ? ORDER BY ano DESC", (self.ultimo_modulo,))
+        anos = ["Todos"] + [row[0] for row in cursor.fetchall()]
+
+        cursor.close()
+        conn.close()
+
+        return anos
+        
+    def obter_setores(self, ano):
+        conn = create_connection()
+        cursor = conn.cursor()
+
+        if ano == "Todos":
+            query = ("SELECT COALESCE(setor_responsavel, 'Não especificado') FROM bo_records WHERE modulo like ?")
+            cursor.execute(query, self.ultimo_modulo)
+        else:
+            query = ("SELECT COALESCE(setor_responsavel, 'Não especificado') FROM bo_records WHERE YEAR(emissao_totvs) = ? AND modulo like ? ORDER BY COALESCE(setor_responsavel, 'Não especificado')")
+            cursor.execute(query, (ano, self.ultimo_modulo))
+        setores = [row[0] for row in cursor.fetchall()]
+
+        cursor.close()
+        conn.close()
+
+        return setores
+        
+    def obter_contagens_por_setor(self):
+        conn = create_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado'), COUNT(*) FROM bo_records GROUP BY setor_responsavel")
+        contagens = {row[0]: row[1] for row in cursor.fetchall()}
+        cursor.close()
+        conn.close()
+
+        return contagens
+
+    def atualizar_grafico(self, event=None):
+        self.ano_atual = self.listaAnos.get()
+        self.setores = self.obter_setores(self.ano_atual)  # Obter setores com base no filtro selecionado
+        self.contagens = self.obter_contagens_por_setor_por_ano(self.ano_atual)  # Obter contagens com base no filtro selecionado
+        self.ax.clear()
+        contagens_completo = [self.contagens.get(sector, 0) for sector in self.setores]
+        self.ax.bar(self.setores, contagens_completo, color='green')
+        self.ax.set_title(f"Contagem de BO's por setor ({self.ano_atual})")
+        self.ax.set_xlabel("Setor")
+        self.ax.set_ylabel("Contagem")
+
+        formatter = FuncFormatter(lambda x, _: int(x))
+        self.ax.yaxis.set_major_formatter(formatter)
+
+        plt.xticks(rotation=45)
+        self.canvas.draw()
+
+    def obter_contagens_por_setor_por_ano(self, ano):
+        conn = create_connection()
+        cursor = conn.cursor()
+
+        if ano == "Todos":
+            cursor.execute(f"SELECT COALESCE(setor_responsavel, 'Não especificado'), COUNT(*) FROM bo_records WHERE modulo like ? GROUP BY setor_responsavel", (self.ultimo_modulo,))
+        else:
+            query = ("SELECT COALESCE(setor_responsavel, 'Não especificado'), COUNT(*) FROM bo_records WHERE YEAR(emissao_totvs) = ? AND modulo like ? GROUP BY setor_responsavel")
+            cursor.execute(query, (ano, self.ultimo_modulo))
+        contagens = {row[0]: row[1] for row in cursor.fetchall()}
+        cursor.close()
+        conn.close()
+
+        return contagens   
 
 
 class buscarBo:
@@ -730,7 +762,7 @@ class buscarBo:
                 FROM SC5010 SC5
                 WHERE SC5.D_E_L_E_T_ <> '*'
                         AND SC5.C5_NOTA = ''
-                        AND SC5.C5_PEDREPR LIKE 'BO%'
+                        AND PATINDEX('BO[0-9]%', SC5.C5_PEDREPR) > 0
                         AND C5_FILIAL IN ('0101','0201')
                 ORDER BY C5_EMISSAO DESC
             """)
@@ -983,11 +1015,17 @@ class acompanhar_Bo:
         ttk.Label(frame_dados_gerais, text=self.bo_dados[2]).grid(
             row=2, column=1, sticky=tk.W)
         
+        # Data de Emissão
+        ttk.Label(frame_dados_gerais, text="EMISSÃO:").grid(
+            row=3, column=0, sticky=tk.W)
+        ttk.Label(frame_dados_gerais, text=self.bo_dados[4]).grid(
+            row=3, column=1, sticky=tk.W)
+        
     def obter_setores(self):
         conn = create_connection()
         cursor = conn.cursor()
     
-        cursor.execute("SELECT setor_responsavel FROM bo_records")
+        cursor.execute("SELECT DISTINCT setor_responsavel FROM bo_records WHERE setor_responsavel IS NOT NULL")
         setores = [row[0] for row in cursor.fetchall()]
 
         cursor.close()
@@ -1040,7 +1078,7 @@ class acompanhar_Bo:
             ttk.Label(frame_transporte, text=f"{campo}:").grid(
                 row=i, column=0, sticky=tk.W)
             if widget == ttk.Combobox:
-                entry = widget(frame_transporte, values=args[0])
+                entry = widget(frame_transporte, values=args[0], state="readonly")
             else:
                 entry = widget(frame_transporte)
             entry.grid(row=i, column=1, sticky="ew")
@@ -1227,6 +1265,7 @@ class acompanhar_Bo:
                 self.bo_dados[0],  # BO
                 self.bo_dados[1],  # OP
                 self.bo_dados[2],  # Cliente
+                self.bo_dados[4],  # Emissão
                 # Tipo de Ocorrência
                 self.entries_ocorrencia["Tipo de Ocorrência"].get(),
                 self.entries_ocorrencia["Motivo"].get(),  # Motivo
@@ -1247,11 +1286,15 @@ class acompanhar_Bo:
                 # Agora, insere os dados
                 cursor.execute('''
                     INSERT INTO bo_records (
-                        bo_number, op, loja, tipo_ocorrencia, motivo, descricao, setor_responsavel,
+                        bo_number, op, loja, emissao_totvs, tipo_ocorrencia, motivo, descricao, setor_responsavel,
                         frete, previsao_embarque, modulo, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', valores)
                 conn.commit()
+            else:
+                messagebox.showerror("Erro", "BO já cadastrada!")
+                self.window.destroy()
+                return
 
             # Atualiza a sequência APÓS salvar
             cursor.execute(
@@ -1259,20 +1302,30 @@ class acompanhar_Bo:
             conn.commit()
 
             messagebox.showinfo("Sucesso", "BO salva com sucesso!")
-            self.window.destroy()
 
-            # Atualiza a lista de BOs no módulo corporativo, se necessário
-            if self.ultimo_modulo == "corporativo":
+            # Atualiza a lista de BOs no módulo que chamou
+            print(f"Módulo que chamou a função: {self.ultimo_modulo}")
+            if self.ultimo_modulo == "Corporativo":
                 from modulos.corporativo import CorporativoModule
                 if CorporativoModule.instance is not None:
-                    CorporativoModule.instance.carregar_bos()
+                    if CorporativoModule.instance is not None:
+                        CorporativoModule.instance.atualizar_bos()
+                    else:
+                        print("Instância do módulo corporativo não encontrada.")
                 else:
                     pass
-            elif self.ultimo_modulo == "varejo":
-                print('tentou atualizar varejo')
+            elif self.ultimo_modulo == "Varejo":
                 from modulos.varejo import VarejoModule
                 if VarejoModule.instance is not None:
-                    VarejoModule.instance.carregar_bos()
+                    if VarejoModule.instance is not None:
+                        print("Instância do módulo varejo encontrada.")
+                        VarejoModule.instance.atualizar_bos()
+                    else:
+                        print("Instância do módulo varejo não encontrada.")
+                else:
+                    pass
+
+            self.window.destroy()
 
         except pyodbc.Error as e:
             messagebox.showerror("Erro", f"Erro ao salvar BO: {e}")

@@ -40,6 +40,12 @@ class CorporativoModule:
         self.search_bar.search_entry.bind('<Return>', self.pesquisar_bo)
         self.root.mainloop()
 
+    def atualizar_bos(self):
+        if self.header is not None:
+            self.header.carregar_bos()
+        else:
+            print("Header não inicializado.")
+        
     def pesquisar_bo(self, event=None):
         termo = self.search_bar.search_entry.get()
         if not termo:

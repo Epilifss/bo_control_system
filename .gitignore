@@ -1,4 +1,37 @@
-database.py
-__pycache__
-build
-.venv
+# Arquivos compilados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Ferramentas de construção
+build/
+dist/
+*.egg-info/
+
+# Outros arquivos temporários
+*.tmp
+*.log
+
+# Arquivos de configuração específicos do ambiente
+*.env
+
+# Arquivos de cache
+*.cache
+*.swp
+*.swo
+
+# Arquivos gerados pelo PyInstaller
+*.spec
+/dist/
+/build/
+
+# Outros arquivos específicos do projeto
+icon.ico
+make_executable.py
+main.spec

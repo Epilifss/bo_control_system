@@ -10,14 +10,13 @@ class VarejoModule:
     instance = None # Var de class que armazena a instância atual
 
     def __init__(self, user):
-        self.user= user
+        self.user = user
         self.root = tk.Tk()
         self.root.title("Módulo Varejo")
 
         self.root.state('zoomed')
 
-        VarejoModule.instance = self     
-
+        VarejoModule.instance = self
 
         # Lista de BOs
         self.tree = ttk.Treeview(self.root, columns=(
@@ -40,6 +39,12 @@ class VarejoModule:
         self.header.carregar_bos()
         self.search_bar.search_entry.bind('<Return>', self.pesquisar_bo)
         self.root.mainloop()
+
+    def atualizar_bos(self):
+        if self.header is not None:
+            self.header.carregar_bos()
+        else:
+            print("Header não inicializado.")
 
     def pesquisar_bo(self, event=None):
         termo = self.search_bar.search_entry.get()
